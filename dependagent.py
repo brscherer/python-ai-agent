@@ -20,16 +20,13 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 from dotenv import load_dotenv
+from openai import OpenAI
 
 import requests
 
 load_dotenv()
 
-# Optional OpenAI client (only used if --no-ai is False)
-try:
-    import openai
-except Exception:
-    openai = None
+
 
 NPM_REGISTRY = "https://registry.npmjs.org"
 
@@ -133,28 +130,18 @@ NPM metadata: {json.dumps(pkg_meta, ensure_ascii=False)}
 
 
 def call_openai_generate(prompt: str, model: str = "gpt-4o-mini", max_tokens: int = 700) -> str:
-    if openai is None:
-        raise RuntimeError("OpenAI library is not installed (install 'openai' in requirements), or it's not importable.")
     key = os.getenv("OPENAI_API_KEY")
     if not key:
         raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
-    openai.api_key = key
+    client = OpenAI(api_key=key)
 
-    # Use ChatCompletion classic interface for broad compatibility
-    resp = openai.ChatCompletion.create(
+    resp = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
         max_tokens=max_tokens,
         temperature=0.2,
     )
-    # extract text
-    if "choices" in resp and len(resp["choices"]) > 0:
-        # older and newer clients vary shape; handle common case
-        choice = resp["choices"][0]
-        if isinstance(choice.get("message"), dict):
-            return choice["message"].get("content", "").strip()
-        return choice.get("text", "").strip()
-    raise RuntimeError("OpenAI response did not contain choices.")
+    return resp.choices[0].message.content.strip()
 
 
 def generate_markdown_report(results: List[Dict], output_path: Path, use_ai: bool = True, openai_model: str = "gpt-4o-mini") -> None:
