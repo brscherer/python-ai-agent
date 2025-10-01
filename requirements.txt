@@ -1,0 +1,5 @@
+requests>=2.28
+typer[all]>=0.7
+openai>=1.0.0
+python-dotenv>=1.0
+colorama>=0.4
